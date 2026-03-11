@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const config = require('./config');
-const { initDb } = require('./lib/db');
+// const { initDb } = require('./lib/db'); // disabled temporarily
 
 const authRoutes = require('./routes/auth');
 const entryRoutes = require('./routes/entries');
@@ -18,6 +18,7 @@ app.use(
     origin: process.env.CLIENT_URL || '*',
   }),
 );
+
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
@@ -39,15 +40,17 @@ app.use((err, _req, res, _next) => {
 
 const start = async () => {
   try {
-    await initDb();
+    // Database initialization disabled for now
+    // await initDb();
+
     app.listen(config.port, () => {
       console.log(`API server listening on port ${config.port}`);
     });
+
   } catch (error) {
-    console.error('Failed to initialize database', error);
+    console.error('Server start error', error);
     process.exit(1);
   }
 };
 
 start();
-
