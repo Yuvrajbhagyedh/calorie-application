@@ -5,8 +5,24 @@ const config = require('../config');
 
 const router = express.Router();
 
-const generateToken = (userId) =>
-  jwt.sign({ sub: userId }, config.jwtSecret, { expiresIn: '7d' });
+const generateToken = (user) =>
+  jwt.sign(
+    {
+      sub: user.id,
+      // Embed minimal user info so the app can run without a DB.
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        dailyCalorieGoal: user.dailyCalorieGoal ?? 2000,
+        heightCm: user.heightCm ?? null,
+        weightKg: user.weightKg ?? null,
+      },
+    },
+    config.jwtSecret,
+    { expiresIn: '7d' },
+  );
 
 const buildUserResponse = (user) => ({
   id: user.id,
@@ -18,7 +34,10 @@ const buildUserResponse = (user) => ({
   weightKg: null,
 });
 
-// DEMO USER (no database)
+// In-memory users (no database)
+const usersByEmail = new Map();
+let nextUserId = 2;
+
 const demoUser = {
   id: 1,
   name: "Demo User",
@@ -28,32 +47,59 @@ const demoUser = {
   dailyCalorieGoal: 2000
 };
 
+usersByEmail.set(demoUser.email, demoUser);
+
 router.post('/register', async (req, res) => {
-  return res.json({
-    message: "Demo mode: registration disabled",
-    demoLogin: {
-      email: "demo@demo.com",
-      password: "123456"
+  try {
+    const { name, email, password, dailyCalorieGoal } = req.body || {};
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const displayName = String(name || '').trim();
+    const rawPassword = String(password || '');
+
+    if (!displayName || !normalizedEmail || rawPassword.length < 4) {
+      return res.status(400).json({ message: 'Please provide name, email, and password' });
     }
-  });
+
+    if (usersByEmail.has(normalizedEmail)) {
+      return res.status(409).json({ message: 'Email already registered' });
+    }
+
+    const newUser = {
+      id: nextUserId++,
+      name: displayName,
+      email: normalizedEmail,
+      password: bcrypt.hashSync(rawPassword, 10),
+      role: 'user',
+      dailyCalorieGoal: Number(dailyCalorieGoal) || 2000,
+    };
+    usersByEmail.set(normalizedEmail, newUser);
+
+    const token = generateToken(newUser);
+    return res.json({
+      token,
+      user: buildUserResponse(newUser),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Unable to register' });
+  }
 });
 
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const user = usersByEmail.get(normalizedEmail);
 
-    if (
-      email !== demoUser.email ||
-      !bcrypt.compareSync(password, demoUser.password)
-    ) {
+    if (!user || !bcrypt.compareSync(String(password || ''), user.password)) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = generateToken(demoUser.id);
+    const token = generateToken(user);
 
     return res.json({
       token,
-      user: buildUserResponse(demoUser),
+      user: buildUserResponse(user),
     });
   } catch (err) {
     console.error(err);
