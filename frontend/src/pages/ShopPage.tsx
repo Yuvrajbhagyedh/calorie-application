@@ -5,6 +5,7 @@ import Footer from '../components/marketing/Footer';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import api from '../api/client';
+import { offlineProducts } from '../data/products';
 import type { Product } from '../types/shop';
 
 const ShopPage = () => {
@@ -33,10 +34,13 @@ const ShopPage = () => {
       try {
         setLoading(true);
         const { data } = await api.get<Product[]>('/api/products');
-        setProducts(data);
+        const list = Array.isArray(data) && data.length ? data : offlineProducts;
+        setProducts(list);
         setError(null);
       } catch (err) {
-        setError('Failed to load products');
+        // Offline mode (no backend / no DB): show built-in catalog.
+        setProducts(offlineProducts);
+        setError(null);
         console.error(err);
       } finally {
         setLoading(false);

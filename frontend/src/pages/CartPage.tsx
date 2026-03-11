@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import api from '../api/client';
 import type { Order } from '../types/shop';
 import type { Product } from '../types/shop';
+import { offlineProductIds } from '../data/products';
 
 const CartPage = () => {
   const { user, hydrated, initialize } = useAuthStore();
@@ -47,7 +48,11 @@ const CartPage = () => {
           alert(`Some items in your cart are no longer available and have been removed.`);
         }
       } catch (error) {
-        console.error('Failed to validate cart items:', error);
+        // Offline mode: validate against the built-in catalog.
+        const invalidItems = items.filter((item) => !offlineProductIds.has(item.product.id));
+        if (invalidItems.length > 0) {
+          invalidItems.forEach((item) => removeFromCart(item.product.id));
+        }
       }
     };
 
