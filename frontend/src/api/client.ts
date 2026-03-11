@@ -17,14 +17,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear invalid token and user data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      // Only redirect if we're not already on the auth page
-      if (window.location.pathname !== '/auth') {
-        window.location.href = '/auth';
-      }
+      // For now, don't hard-redirect back to /auth on every 401.
+      // Many hosted/demo setups may not have a full backend/database,
+      // and some non-critical API calls (like loading history) can
+      // safely fail without kicking the user out of the app.
+      //
+      // We still surface the error to callers so they can show a
+      // friendly message, but we avoid the jarring redirect loop
+      // where the user briefly sees Home and is sent back to Auth.
+      //
+      // If you later add full backend auth with token expiry, you
+      // can re-introduce a redirect here or handle logout in the
+      // auth store instead.
     }
     return Promise.reject(error);
   }
