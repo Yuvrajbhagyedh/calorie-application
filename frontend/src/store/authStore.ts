@@ -90,7 +90,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((state) => {
       if (!state.user) return state;
       const user = { ...state.user, ...updates };
-      persistAuth({ token: state.token, user });
+      persistAuth({ token: state.token ?? undefined, user });
       return { user };
     });
   },
